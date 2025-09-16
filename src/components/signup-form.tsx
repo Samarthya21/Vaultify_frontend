@@ -71,19 +71,44 @@ export function SignupForm() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ...existing code...
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) return
 
     setIsLoading(true)
+    setErrors({})
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      const res = await fetch("http://localhost:8080/api/v1/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
 
-    setIsLoading(false)
-    console.log("Signup attempt:", formData)
-  }
+      if (!res.ok) {
+        const errorText = await res.text()
+        setErrors({ api: errorText })
+        setIsLoading(false)
+        return
+      }
+
+      const data = await res.json()
+      // Handle success (e.g., save token, redirect, etc.)
+      console.log("Signup success:", data)
+      // Example: localStorage.setItem("token", data.token)
+    } catch (err) {
+      setErrors({ api: "Network error" })
+    } finally {
+      setIsLoading(false)
+    }
+}
+// ...existing code...
 
   const getInputIcon = (field: string, hasError: boolean) => {
     if (hasError) {

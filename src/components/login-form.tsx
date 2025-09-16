@@ -58,13 +58,36 @@ export function LoginForm() {
     if (!validateForm()) return
 
     setIsLoading(true)
+    setErrors({})
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      const res = await fetch("http://localhost:8080/api/v1/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
 
-    setIsLoading(false)
-    console.log("Login attempt:", formData)
-  }
+      if (!res.ok) {
+        const errorText = await res.text()
+        setErrors({ api: errorText })
+        setIsLoading(false)
+        return
+      }
+
+      const data = await res.json()
+      
+      localStorage.setItem("token", data.token)
+      console.log("Login success:", data)
+      
+    } catch (err) {
+      setErrors({ api: "Network error" })
+    } finally {
+      setIsLoading(false)
+    }
+}
 
   const getInputIcon = (field: string, hasError: boolean) => {
     if (hasError) {
