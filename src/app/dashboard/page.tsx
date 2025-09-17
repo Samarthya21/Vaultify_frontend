@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import {
   Search,
   Filter,
@@ -31,6 +31,7 @@ import { Slider } from "@/components/ui/slider"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import type { DateRange } from "react-day-picker"
+import UploadArea from "./upload-area"
 
 type FileMetadata = {
   id: string
@@ -68,42 +69,46 @@ export default function DashboardPage() {
     uploader: "",
   })
 
-  useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const token = localStorage.getItem("token") // stored at login
-        if (!token) {
-          setError("Authentication required. Please log in to view your files.")
-          setLoading(false)
-          return
-        }
-
-        const res = await fetch("http://localhost:8080/api/v1/files", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch files: ${res.status} ${res.statusText}`)
-        }
-
-        const data = await res.json()
-        setFiles(data)
-        setFilteredFiles(data)
-        setError(null)
-      } catch (err) {
-        console.error("Error fetching files:", err)
-        setError(err instanceof Error ? err.message : "Failed to load files")
-      } finally {
+  const fetchFiles = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        setError("Authentication required. Please log in to view your files.")
         setLoading(false)
+        return
       }
-    }
 
-    fetchFiles()
+      const res = await fetch("http://localhost:8080/api/v1/files", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch files: ${res.status} ${res.statusText}`)
+      }
+
+      const data = await res.json()
+      setFiles(data)
+      setFilteredFiles(data)
+      setError(null)
+    } catch (err) {
+      console.error("Error fetching files:", err)
+      setError(err instanceof Error ? err.message : "Failed to load files")
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
+    fetchFiles()
+  }, [fetchFiles])
+
+    useEffect(() => {
+      if (!files) {
+      setFilteredFiles([]);
+      return;
+    }
     const filtered = files.filter((file) => {
       const matchesSearch = file.filename.toLowerCase().includes(filters.search.toLowerCase())
       const matchesMimeType = filters.mimeType === "all" || file.mime.includes(filters.mimeType)
@@ -182,6 +187,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="container mx-auto px-6 py-6">
+        <UploadArea onFilesUploaded={fetchFiles} />
+
         <Collapsible open={showFilters} onOpenChange={setShowFilters}>
           <CollapsibleContent className="mb-6">
             <Card>
@@ -249,9 +256,11 @@ export default function DashboardPage() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Showing {filteredFiles.length} of {files.length} files
-                    </span>
+                    {files && files.length > 0 && (
+                        <span className="text-sm text-muted-foreground">
+                            Showing {filteredFiles.length} of {files.length} files
+                        </span>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
@@ -302,7 +311,7 @@ export default function DashboardPage() {
               </Button>
             </CardContent>
           </Card>
-        ) : filteredFiles.length === 0 ? (
+           ) : (filteredFiles?.length ?? 0) === 0 ? (
           <Card className="py-12">
             <CardContent className="text-center">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
