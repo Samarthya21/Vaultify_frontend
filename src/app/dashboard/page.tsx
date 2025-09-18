@@ -32,7 +32,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import type { DateRange } from "react-day-picker"
 import UploadArea from "./upload-area"
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 type FileMetadata = {
   id: string
   filename: string
@@ -68,7 +68,9 @@ export default function DashboardPage() {
     tags: [],
     uploader: "",
   })
-
+  const [showSavings, setShowSavings] = useState(false)
+  const [savingsData, setSavingsData] = useState<{ total_file_size: number; unique_blob_size: number; savings: number } | null>(null)
+    
   const fetchFiles = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
@@ -241,7 +243,28 @@ const handleDownload = async (fileId: string) => {
   }
 }
 
+const fetchSavings = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      alert("You must be logged in to view savings.")
+      return
+    }
 
+    const res = await fetch("http://localhost:8080/api/v1/savings", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) throw new Error(`Failed: ${res.statusText}`)
+
+    const data = await res.json()
+    setSavingsData(data)
+    setShowSavings(true)
+  } catch (err) {
+    console.error(err)
+    alert("Error fetching savings")
+  }
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -261,6 +284,9 @@ const handleDownload = async (fileId: string) => {
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
+              <Button size="sm" onClick={fetchSavings}>
+                View Savings
+              </Button>              
             </div>
           </div>
 
@@ -499,7 +525,23 @@ const handleDownload = async (fileId: string) => {
             ))}
           </div>
         )}
+          </div>
+    <Dialog open={showSavings} onOpenChange={setShowSavings}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Storage Savings</DialogTitle>
+    </DialogHeader>
+    {savingsData ? (
+      <div className="space-y-2 text-sm">
+        <p>Total Uploaded Size: <b>{(savingsData.total_file_size / 1024 / 1024).toFixed(2)} MB</b></p>
+        <p>Unique Blob Size: <b>{(savingsData.unique_blob_size / 1024 / 1024).toFixed(2)} MB</b></p>
+        <p className="text-green-600">Saved Space: <b>{(savingsData.savings / 1024 / 1024).toFixed(2)} MB</b></p>
       </div>
+    ) : (
+      <p>Loading...</p>
+    )}
+  </DialogContent>
+    </Dialog>
     </div>
   )
 }
