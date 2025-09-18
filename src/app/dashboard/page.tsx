@@ -145,6 +145,103 @@ export default function DashboardPage() {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
+ // Delete file by ID
+const handleDelete = async (fileId: string) => {
+  if (!confirm("Are you sure you want to delete this file?")) return
+
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      alert("You must be logged in to delete files.")
+      return
+    }
+
+    const res = await fetch(`http://localhost:8080/api/v1/delete/${fileId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to delete file: ${res.status} ${res.statusText}`)
+    }
+
+    // Refresh after deletion
+    await fetchFiles()
+  } catch (err) {
+    console.error("Error deleting file:", err)
+    alert(err instanceof Error ? err.message : "Failed to delete file")
+  }
+}
+    // Mark file as public and get shareable URL
+const handleShare = async (fileId: string) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      alert("You must be logged in to share files.")
+      return
+    }
+
+    const res = await fetch(`http://localhost:8080/api/v1/share/${fileId}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to share file: ${res.status} ${res.statusText}`)
+    }
+
+    const data = await res.json()
+    const url = data.public_url   // ✅ changed here
+
+    await navigator.clipboard.writeText(url)
+    alert(`Public URL copied to clipboard:\n${url}`)
+  } catch (err) {
+    console.error("Error sharing file:", err)
+    alert(err instanceof Error ? err.message : "Failed to share file")
+  }
+}
+
+
+// Download file (owner-only)
+const handleDownload = async (fileId: string) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      alert("You must be logged in to download files.")
+      return
+    }
+
+    const res = await fetch(`http://localhost:8080/api/v1/download/${fileId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to download file: ${res.status} ${res.statusText}`)
+    }
+
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "file" // backend can send Content-Disposition for exact name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error("Error downloading file:", err)
+    alert(err instanceof Error ? err.message : "Failed to download file")
+  }
+}
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -348,20 +445,21 @@ export default function DashboardPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download
+                        <DropdownMenuItem onClick={() => handleDownload(file.id)}>
+                        <Download className="h-4 w-4 mr-2" />
+                            Download
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share
+                        <DropdownMenuItem onClick={() => handleShare(file.id)}>
+                        <Share2 className="h-4 w-4 mr-2" />
+                            Get Share URL
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">
-                          <X className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(file.id)}>
+                        <X className="h-4 w-4 mr-2" />
+                            Delete
+                         </DropdownMenuItem>
+                        </DropdownMenuContent>
+
                     </DropdownMenu>
                   </div>
 
