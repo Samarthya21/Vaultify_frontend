@@ -5,14 +5,12 @@ import {
   Search,
   Filter,
   Download,
-  Share2,
   FileText,
   ImageIcon,
   Video,
   Archive,
   MoreHorizontal,
   ChevronDown,
-  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,18 +29,21 @@ import { Slider } from "@/components/ui/slider"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import type { DateRange } from "react-day-picker"
-import UploadArea from "./upload-area"
+import UploadArea from "../dashboard/upload-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-type FileMetadata = {
+
+type AdminFile = {
   id: string
   filename: string
-  mime: string
+  mime?: string
   size: number
   uploaded_at: string
-  sha256: string
-  storage_key: string
+  uploader_email?: string
+  uploader_name?: string
+  download_count?: number
+  sha256?: string
+  storage_key?: string
   tags?: string[]
-  uploader?: string
 }
 
 type FilterState = {
@@ -54,11 +55,11 @@ type FilterState = {
   uploader: string
 }
 
-export default function DashboardPage() {
-  const [files, setFiles] = useState<FileMetadata[]>([])
+export default function AdminPage() {
+  const [files, setFiles] = useState<AdminFile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filteredFiles, setFilteredFiles] = useState<FileMetadata[]>([])
+  const [filteredFiles, setFilteredFiles] = useState<AdminFile[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<FilterState>({
     search: "",
@@ -68,34 +69,57 @@ export default function DashboardPage() {
     tags: [],
     uploader: "",
   })
+
   const [showSavings, setShowSavings] = useState(false)
-  const [savingsData, setSavingsData] = useState<{ total_file_size: number; unique_blob_size: number; savings: number } | null>(null)
-    
+  const [savingsData, setSavingsData] = useState<{
+    total_file_usage: number
+    deduped_usage: number
+    savings: number
+    savings_percent: string
+  } | null>(null)
+
   const fetchFiles = useCallback(async () => {
+    setLoading(true)
     try {
       const token = localStorage.getItem("token")
       if (!token) {
-        setError("Authentication required. Please log in to view your files.")
+        setError("Authentication required. Please log in as an admin.")
         setLoading(false)
         return
       }
 
-      const res = await fetch("http://localhost:8080/api/v1/files", {
+      const res = await fetch("http://localhost:8080/api/v1/admin/files", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
 
       if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Forbidden: admin access required")
+        }
         throw new Error(`Failed to fetch files: ${res.status} ${res.statusText}`)
       }
 
       const data = await res.json()
-      setFiles(data)
-      setFilteredFiles(data)
+      // Normalize uploader fields coming from backend to match UI state
+      const normalized: AdminFile[] = data.map((f: any) => ({
+        id: f.id,
+        filename: f.filename,
+        mime: f.mime ?? "",
+        size: f.size ?? 0,
+        uploaded_at: f.uploaded_at ?? f.uploadedAt ?? "",
+        uploader_email: f.uploader_email ?? f.email ?? f.uploaderEmail ?? "",
+        uploader_name: f.uploader_name ?? f.name ?? f.uploaderName ?? "",
+        download_count: f.download_count ?? f.downloadCount ?? 0,
+        sha256: f.sha256,
+        storage_key: f.storage_key,
+      }))
+      setFiles(normalized)
+      setFilteredFiles(normalized)
       setError(null)
     } catch (err) {
-      console.error("Error fetching files:", err)
+      console.error("Error fetching admin files:", err)
       setError(err instanceof Error ? err.message : "Failed to load files")
     } finally {
       setLoading(false)
@@ -106,16 +130,16 @@ export default function DashboardPage() {
     fetchFiles()
   }, [fetchFiles])
 
-    useEffect(() => {
-      if (!files) {
-      setFilteredFiles([]);
-      return;
+  useEffect(() => {
+    if (!files) {
+      setFilteredFiles([])
+      return
     }
     const filtered = files.filter((file) => {
       const matchesSearch = file.filename.toLowerCase().includes(filters.search.toLowerCase())
-      const matchesMimeType = filters.mimeType === "all" || file.mime.includes(filters.mimeType)
+      const matchesMimeType = filters.mimeType === "all" || (file.mime || "").includes(filters.mimeType)
       const matchesSize = file.size >= filters.sizeRange[0] * 1024 && file.size <= filters.sizeRange[1] * 1024
-      const matchesUploader = !filters.uploader || file.uploader?.includes(filters.uploader)
+      const matchesUploader = !filters.uploader || (file.uploader_email || file.uploader_name || "").includes(filters.uploader)
 
       let matchesDateRange = true
       if (filters.dateRange?.from || filters.dateRange?.to) {
@@ -133,10 +157,10 @@ export default function DashboardPage() {
   }, [files, filters])
 
   const getFileIcon = (mime: string) => {
-    if (mime.startsWith("image/")) return <ImageIcon className="h-5 w-5 text-blue-500" />
-    if (mime.startsWith("video/")) return <Video className="h-5 w-5 text-purple-500" />
-    if (mime.includes("pdf") || mime.includes("document")) return <FileText className="h-5 w-5 text-red-500" />
-    if (mime.includes("zip") || mime.includes("archive")) return <Archive className="h-5 w-5 text-yellow-500" />
+    if (mime?.startsWith?.("image/")) return <ImageIcon className="h-5 w-5 text-blue-500" />
+    if (mime?.startsWith?.("video/")) return <Video className="h-5 w-5 text-purple-500" />
+    if (mime?.includes?.("pdf") || mime?.includes?.("document")) return <FileText className="h-5 w-5 text-red-500" />
+    if (mime?.includes?.("zip") || mime?.includes?.("archive")) return <Archive className="h-5 w-5 text-yellow-500" />
     return <FileText className="h-5 w-5 text-gray-500" />
   }
 
@@ -147,124 +171,70 @@ export default function DashboardPage() {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
- // Delete file by ID
-const handleDelete = async (fileId: string) => {
-  if (!confirm("Are you sure you want to delete this file?")) return
 
-  try {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      alert("You must be logged in to delete files.")
-      return
+  // Admin download (server enforces authorization)
+  const handleDownload = async (fileId: string, filename?: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        alert("You must be logged in to download files.")
+        return
+      }
+
+      const res = await fetch(`http://localhost:8080/api/v1/download/${fileId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        throw new Error(`Failed to download file: ${res.status} ${res.statusText}`)
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename || "file"
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Error downloading file:", err)
+      alert(err instanceof Error ? err.message : "Failed to download file")
     }
-
-    const res = await fetch(`http://localhost:8080/api/v1/delete/${fileId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!res.ok) {
-      throw new Error(`Failed to delete file: ${res.status} ${res.statusText}`)
-    }
-
-    // Refresh after deletion
-    await fetchFiles()
-  } catch (err) {
-    console.error("Error deleting file:", err)
-    alert(err instanceof Error ? err.message : "Failed to delete file")
   }
-}
-    // Mark file as public and get shareable URL
-const handleShare = async (fileId: string) => {
-  try {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      alert("You must be logged in to share files.")
-      return
+
+  // Fetch global savings/stats
+  const fetchSavings = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        alert("You must be logged in to view stats.")
+        return
+      }
+
+      const res = await fetch("http://localhost:8080/api/v1/admin/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        throw new Error(`Failed to load stats: ${res.status} ${res.statusText}`)
+      }
+      const data = await res.json()
+      setSavingsData({
+        total_file_usage: data.total_file_usage ?? data.totalFileUsage ?? 0,
+        deduped_usage: data.deduped_usage ?? data.dedupedUsage ?? 0,
+        savings: data.savings ?? 0,
+        savings_percent: data.savings_percent ?? data.savingsPercent ?? "0%",
+      })
+      setShowSavings(true)
+    } catch (err) {
+      console.error("Error fetching admin stats:", err)
+      alert(err instanceof Error ? err.message : "Failed to fetch stats")
     }
-
-    const res = await fetch(`http://localhost:8080/api/v1/share/${fileId}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!res.ok) {
-      throw new Error(`Failed to share file: ${res.status} ${res.statusText}`)
-    }
-
-    const data = await res.json()
-    const url = data.public_url   // ✅ changed here
-
-    await navigator.clipboard.writeText(url)
-    alert(`Public URL copied to clipboard:\n${url}`)
-  } catch (err) {
-    console.error("Error sharing file:", err)
-    alert(err instanceof Error ? err.message : "Failed to share file")
   }
-}
-
-
-// Download file (owner-only)
-const handleDownload = async (fileId: string) => {
-  try {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      alert("You must be logged in to download files.")
-      return
-    }
-
-    const res = await fetch(`http://localhost:8080/api/v1/download/${fileId}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!res.ok) {
-      throw new Error(`Failed to download file: ${res.status} ${res.statusText}`)
-    }
-
-    const blob = await res.blob()
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "file" // backend can send Content-Disposition for exact name
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.URL.revokeObjectURL(url)
-  } catch (err) {
-    console.error("Error downloading file:", err)
-    alert(err instanceof Error ? err.message : "Failed to download file")
-  }
-}
-
-const fetchSavings = async () => {
-  try {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      alert("You must be logged in to view savings.")
-      return
-    }
-
-    const res = await fetch("http://localhost:8080/api/v1/savings", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-
-    if (!res.ok) throw new Error(`Failed: ${res.statusText}`)
-
-    const data = await res.json()
-    setSavingsData(data)
-    setShowSavings(true)
-  } catch (err) {
-    console.error(err)
-    alert("Error fetching savings")
-  }
-}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -272,14 +242,16 @@ const fetchSavings = async () => {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">File Manager</h1>
-              <p className="text-muted-foreground">Manage and organize your files</p>
+              <h1 className="text-3xl font-bold text-foreground">Admin — Files</h1>
+              <p className="text-muted-foreground">List of all uploaded files (admin)</p>
             </div>
             <div className="flex items-center gap-3">
-              
+              <Button variant="outline" size="sm" onClick={fetchFiles}>
+                Refresh
+              </Button>
               <Button size="sm" onClick={fetchSavings}>
-                View Savings
-              </Button>              
+                View Storage Stats
+              </Button>
             </div>
           </div>
 
@@ -303,6 +275,7 @@ const fetchSavings = async () => {
       </div>
 
       <div className="container mx-auto px-6 py-6">
+        {/* Admins can use same UploadArea component to upload files */}
         <UploadArea onFilesUploaded={fetchFiles} />
 
         <Collapsible open={showFilters} onOpenChange={setShowFilters}>
@@ -373,9 +346,9 @@ const fetchSavings = async () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {files && files.length > 0 && (
-                        <span className="text-sm text-muted-foreground">
-                            Showing {filteredFiles.length} of {files.length} files
-                        </span>
+                      <span className="text-sm text-muted-foreground">
+                        Showing {filteredFiles.length} of {files.length} files
+                      </span>
                     )}
                   </div>
                   <Button
@@ -409,25 +382,14 @@ const fetchSavings = async () => {
           <Card className="py-12">
             <CardContent className="text-center">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2 text-destructive">Authentication Error</h3>
+              <h3 className="text-lg font-semibold mb-2 text-destructive">Error</h3>
               <p className="text-muted-foreground mb-4">{error}</p>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>To fix this issue:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Log in through your authentication system</li>
-                  <li>
-                    Or manually set a token:{" "}
-                    <code className="bg-muted px-1 rounded">localStorage.setItem("token", "your-jwt-token")</code>
-                  </li>
-                  <li>Make sure your backend is running on http://localhost:8080</li>
-                </ul>
-              </div>
               <Button onClick={() => (window.location.href = "/login")} className="mt-4">
                 Go to Login
               </Button>
             </CardContent>
           </Card>
-           ) : (filteredFiles?.length ?? 0) === 0 ? (
+        ) : (filteredFiles?.length ?? 0) === 0 ? (
           <Card className="py-12">
             <CardContent className="text-center">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -442,16 +404,17 @@ const fetchSavings = async () => {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      {getFileIcon(file.mime)}
+                      {getFileIcon(file.mime || "")}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm truncate" title={file.filename}>
                           {file.filename}
                         </h3>
                         <p className="text-xs text-muted-foreground">
-                          {file.mime.split("/")[1]?.toUpperCase() || "FILE"}
+                          {(file.mime || "").split("/")[1]?.toUpperCase() || "FILE"}
                         </p>
                       </div>
                     </div>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -462,23 +425,23 @@ const fetchSavings = async () => {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
+
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleDownload(file.id)}>
-                        <Download className="h-4 w-4 mr-2" />
-                            Download
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleShare(file.id)}>
-                        <Share2 className="h-4 w-4 mr-2" />
-                            Get Share URL
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(file.id)}>
-                        <X className="h-4 w-4 mr-2" />
-                            Delete
-                         </DropdownMenuItem>
-                        </DropdownMenuContent>
 
+                        <DropdownMenuItem onClick={() => handleDownload(file.id, file.filename)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </DropdownMenuItem>
+
+                        <DropdownMenuSeparator />
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          <div><strong>Uploader:</strong> {file.uploader_name || file.uploader_email || "—"}</div>
+                          <div><strong>Uploaded:</strong> {new Date(file.uploaded_at).toLocaleString()}</div>
+                          <div><strong>Size:</strong> {formatFileSize(file.size)}</div>
+                          <div><strong>Downloads:</strong> {file.download_count ?? 0}</div>
+                        </div>
+                      </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
 
@@ -491,12 +454,10 @@ const fetchSavings = async () => {
                       <span>Uploaded:</span>
                       <span className="font-medium">{new Date(file.uploaded_at).toLocaleDateString()}</span>
                     </div>
-                    {file.uploader && (
-                      <div className="flex justify-between">
-                        <span>By:</span>
-                        <span className="font-medium">{file.uploader}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span>By:</span>
+                      <span className="font-medium">{file.uploader_name || file.uploader_email || "—"}</span>
+                    </div>
                   </div>
 
                   {file.tags && file.tags.length > 0 && (
@@ -518,23 +479,34 @@ const fetchSavings = async () => {
             ))}
           </div>
         )}
-          </div>
-    <Dialog open={showSavings} onOpenChange={setShowSavings}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Storage Savings</DialogTitle>
-    </DialogHeader>
-    {savingsData ? (
-      <div className="space-y-2 text-sm">
-        <p>Total Uploaded Size: <b>{(savingsData.total_file_size / 1024 / 1024).toFixed(2)} MB</b></p>
-        <p>Unique Blob Size: <b>{(savingsData.unique_blob_size / 1024 / 1024).toFixed(2)} MB</b></p>
-        <p className="text-green-600">Saved Space: <b>{(savingsData.savings / 1024 / 1024).toFixed(2)} MB</b></p>
       </div>
-    ) : (
-      <p>Loading...</p>
-    )}
-  </DialogContent>
-    </Dialog>
+
+      {/* Savings / stats dialog */}
+      <Dialog open={showSavings} onOpenChange={setShowSavings}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Global Storage Stats</DialogTitle>
+          </DialogHeader>
+          {savingsData ? (
+            <div className="space-y-2 text-sm">
+              <p>
+                Total File Usage: <b>{(savingsData.total_file_usage / 1024 / 1024).toFixed(2)} MB</b>
+              </p>
+              <p>
+                Deduplicated Usage: <b>{(savingsData.deduped_usage / 1024 / 1024).toFixed(2)} MB</b>
+              </p>
+              <p className="text-green-600">
+                Saved Space: <b>{(savingsData.savings / 1024 / 1024).toFixed(2)} MB</b>
+              </p>
+              <p>
+                Savings Percent: <b>{savingsData.savings_percent}</b>
+              </p>
+            </div>
+          ) : (
+            <p>Loading...</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
