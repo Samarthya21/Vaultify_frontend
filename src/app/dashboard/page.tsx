@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   ChevronDown,
   X,
+  Eye,
 } from "lucide-react"
 import { Toaster, toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button"
@@ -71,6 +72,9 @@ export default function DashboardPage() {
   })
   const [showSavings, setShowSavings] = useState(false)
   const [savingsData, setSavingsData] = useState<{ total_file_size: number; unique_blob_size: number; savings: number } | null>(null)
+    
+  const [previewFile, setPreviewFile] = useState<FileMetadata | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     
   const fetchFiles = useCallback(async () => {
     try {
@@ -267,6 +271,29 @@ const fetchSavings = async () => {
     toast.error(err instanceof Error ? err.message : "Error fetching savings.",{ duration: 4000 });
   }
 };
+    
+// 👁️ Preview handler
+const handlePreview = async (file: FileMetadata) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      toast.error("You must be logged in to preview files.")
+      return
+    }
+    const res = await fetch(`http://localhost:8080/api/v1/download/${file.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error("Failed to preview file")
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    setPreviewFile(file)
+    setPreviewUrl(url)
+  } catch (err) {
+    console.error("Preview error:", err)
+    toast.error("Failed to preview file.")
+  }
+}
+
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -460,7 +487,7 @@ const fetchSavings = async () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-8 w-8 p-0 "
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -476,6 +503,10 @@ const fetchSavings = async () => {
                             Get Share URL
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handlePreview(file)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Preview
+                        </DropdownMenuItem>            
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(file.id)}>
                         <X className="h-4 w-4 mr-2" />
                             Delete
@@ -537,7 +568,24 @@ const fetchSavings = async () => {
       <p>Loading...</p>
     )}
   </DialogContent>
-    </Dialog>
+          </Dialog>
+    <Dialog open={!!previewFile} onOpenChange={() => { setPreviewFile(null); setPreviewUrl(null) }}>
+  <DialogContent className="max-w-3xl">
+    <DialogHeader>
+      <DialogTitle>Preview: {previewFile?.filename}</DialogTitle>
+    </DialogHeader>
+    {previewUrl && previewFile?.mime.startsWith("image/") && (
+      <img src={previewUrl} alt="preview" className="max-h-[70vh] mx-auto" />
+    )}
+    {previewUrl && previewFile?.mime.startsWith("video/") && (
+      <video src={previewUrl} controls className="max-h-[70vh] mx-auto" />
+    )}
+    {previewUrl && previewFile?.mime.includes("pdf") && (
+      <embed src={previewUrl} type="application/pdf" className="w-full h-[70vh]" />
+    )}
+    {!previewUrl && <p>Loading preview...</p>}
+  </DialogContent>
+</Dialog>
     </div>
   )
 }
