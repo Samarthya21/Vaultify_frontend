@@ -1,14 +1,15 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Mail, Lock, CheckCircle, AlertCircle } from "lucide-react"
+import { toast } from "react-hot-toast"
 
 export function LoginForm() {
   const [formData, setFormData] = useState({
@@ -18,6 +19,7 @@ export function LoginForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -72,7 +74,7 @@ export function LoginForm() {
 
       if (!res.ok) {
         const errorText = await res.text()
-        setErrors({ api: errorText })
+        toast.error(`Login failed: ${errorText}`,{duration: 4000}) 
         setIsLoading(false)
         return
       }
@@ -81,9 +83,20 @@ export function LoginForm() {
       
       localStorage.setItem("token", data.token)
       console.log("Login success:", data)
+       
+      // Reroute based on user role
+      if (data.role === "admin") {
+        
+        router.push("/admin")
+      } else {
+        
+        router.push("/dashboard")
+      }
+      
+     
       
     } catch (err) {
-      setErrors({ api: "Network error" })
+      toast.error("Network error. Please check your connection.",{ duration: 4000 })
     } finally {
       setIsLoading(false)
     }

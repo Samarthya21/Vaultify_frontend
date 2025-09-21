@@ -25,7 +25,6 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes"
     const k = 1024
@@ -69,7 +68,11 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
             form.append("file", file, file.name)
 
             const xhr = new XMLHttpRequest()
-            xhr.open("POST", `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/v1/upload`, true)
+            xhr.open(
+              "POST",
+              `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/v1/upload`,
+              true
+            )
             xhr.setRequestHeader("Authorization", `Bearer ${token}`)
 
             // progress updates
@@ -78,37 +81,41 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
                 const percent = Math.round((e.loaded / e.total) * 100)
                 setUploadItems((prev) =>
                   prev.map((it) =>
-                    it.id === itemId ? { ...it, progress: percent, status: "uploading" } : it,
-                  ),
+                    it.id === itemId ? { ...it, progress: percent, status: "uploading" } : it
+                  )
                 )
               }
             }
 
-            // completion
+            // progress fucntionality
             xhr.onreadystatechange = () => {
               if (xhr.readyState === 4) {
                 if (xhr.status >= 200 && xhr.status < 300) {
                   setUploadItems((prev) =>
                     prev.map((it) =>
-                      it.id === itemId ? { ...it, progress: 100, status: "done" } : it,
-                    ),
+                      it.id === itemId ? { ...it, progress: 100, status: "done" } : it
+                    )
                   )
-
-                
                   setTimeout(() => {
                     setUploadItems((prev) => prev.filter((it) => it.id !== itemId))
                   }, 2000)
-
                   onFilesUploaded?.()
                   resolve()
                 } else {
                   setUploadItems((prev) =>
                     prev.map((it) =>
                       it.id === itemId
-                        ? { ...it, status: "error", error: xhr.responseText || `status ${xhr.status}` }
-                        : it,
-                    ),
+                        ? {
+                            ...it,
+                            status: "error",
+                            error: xhr.responseText || `status ${xhr.status}`,
+                          }
+                        : it
+                    )
                   )
+                  setTimeout(() => {
+                    setUploadItems((prev) => prev.filter((it) => it.id !== itemId))
+                  }, 2000)
                   resolve()
                 }
               }
@@ -117,15 +124,18 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
             xhr.onerror = () => {
               setUploadItems((prev) =>
                 prev.map((it) =>
-                  it.id === itemId ? { ...it, status: "error", error: "network error" } : it,
-                ),
+                  it.id === itemId ? { ...it, status: "error", error: "network error" } : it
+                )
               )
+              setTimeout(() => {
+                setUploadItems((prev) => prev.filter((it) => it.id !== itemId))
+              }, 2000)
               resolve()
             }
 
             xhr.send(form)
-          }),
-      ),
+          })
+      )
     )
   }
 
@@ -151,7 +161,7 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
 
   const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     addFiles(e.target.files)
-    e.currentTarget.value = "" 
+    e.currentTarget.value = ""
   }
 
   return (
@@ -163,19 +173,30 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
             : "border-dashed border-2 hover:border-primary/50 hover:bg-muted/30"
         }`}
       >
-        <CardContent className="p-8 text-center" onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
+        <CardContent
+          className="p-8 text-center"
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+        >
           <div className="flex flex-col items-center space-y-4">
             <div
               className={`p-4 rounded-full transition-colors ${
-                dragActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                dragActive
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
               }`}
             >
               <Upload className="h-8 w-8" />
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">{dragActive ? "Drop files here" : "Upload your files"}</h3>
-              <p className="text-sm text-muted-foreground">Drag and drop files here, or click to select files</p>
+              <h3 className="text-lg font-semibold">
+                {dragActive ? "Drop files here" : "Upload your files"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Drag and drop files here, or click to select files
+              </p>
             </div>
 
             {/* hidden input + trigger via button */}
@@ -192,7 +213,9 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
               Select Files
             </Button>
 
-            <p className="text-xs text-muted-foreground">Supports multiple files • Maximum 100MB per file</p>
+            <p className="text-xs text-muted-foreground">
+              Supports multiple files • Maximum 100MB per file
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -206,23 +229,37 @@ export default function UploadArea({ onFilesUploaded }: UploadAreaProps) {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="flex-shrink-0">
-                      {item.status === "uploading" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                      {item.status === "done" && <CheckCircle className="h-4 w-4 text-green-500" />}
-                      {item.status === "error" && <XCircle className="h-4 w-4 text-destructive" />}
-                      {item.status === "idle" && <FileIcon className="h-4 w-4 text-muted-foreground" />}
+                      {item.status === "uploading" && (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      )}
+                      {item.status === "done" && (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      )}
+                      {item.status === "error" && (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      {item.status === "idle" && (
+                        <FileIcon className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate" title={item.name}>
                         {item.name}
                       </p>
-                      <p className="text-xs text-muted-foreground">{formatFileSize(item.size)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(item.size)}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-xs font-medium">
                       {item.status === "uploading" && `${item.progress}%`}
-                      {item.status === "done" && <span className="text-green-600">Complete</span>}
-                      {item.status === "error" && <span className="text-destructive">Failed</span>}
+                      {item.status === "done" && (
+                        <span className="text-green-600">Complete</span>
+                      )}
+                      {item.status === "error" && (
+                        <span className="text-destructive">Failed</span>
+                      )}
                     </div>
                   </div>
                 </div>

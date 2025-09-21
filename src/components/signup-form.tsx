@@ -1,14 +1,15 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Mail, Lock, User, CheckCircle, AlertCircle } from "lucide-react"
+import { toast } from "react-hot-toast"
 
 export function SignupForm() {
   const [formData, setFormData] = useState({
@@ -21,6 +22,7 @@ export function SignupForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -71,8 +73,7 @@ export function SignupForm() {
     return Object.keys(newErrors).length === 0
   }
 
-  // ...existing code...
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) return
@@ -93,7 +94,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
       if (!res.ok) {
         const errorText = await res.text()
-        setErrors({ api: errorText })
+        toast.error(`Signup failed: ${errorText}`,{ duration: 4000 })
         setIsLoading(false)
         return
       }
@@ -101,14 +102,16 @@ const handleSubmit = async (e: React.FormEvent) => {
       const data = await res.json()
       // Handle success (e.g., save token, redirect, etc.)
       console.log("Signup success:", data)
-      // Example: localStorage.setItem("token", data.token)
+      localStorage.setItem("token", data.token)
+      router.push("/dashboard")
+      toast.success("Signup successful! Redirecting to the dashboard...",{ duration: 4000 })
+
     } catch (err) {
-      setErrors({ api: "Network error" })
+      toast.error("Network error. Please check your connection.",{ duration: 4000 })
     } finally {
       setIsLoading(false)
     }
-}
-// ...existing code...
+  }
 
   const getInputIcon = (field: string, hasError: boolean) => {
     if (hasError) {

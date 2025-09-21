@@ -14,6 +14,7 @@ import {
   ChevronDown,
   X,
 } from "lucide-react"
+import { Toaster, toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -154,7 +155,7 @@ const handleDelete = async (fileId: string) => {
   try {
     const token = localStorage.getItem("token")
     if (!token) {
-      alert("You must be logged in to delete files.")
+      toast.error("You must be logged in to delete files.",{ duration: 4000 });
       return
     }
 
@@ -171,9 +172,10 @@ const handleDelete = async (fileId: string) => {
 
     // Refresh after deletion
     await fetchFiles()
+    toast.success("File successfully deleted!" ,{ duration: 4000 });  
   } catch (err) {
     console.error("Error deleting file:", err)
-    alert(err instanceof Error ? err.message : "Failed to delete file")
+    toast.error(err instanceof Error ? err.message : "Failed to delete file.",{ duration: 4000 });
   }
 }
     // Mark file as public and get shareable URL
@@ -245,29 +247,30 @@ const handleDownload = async (fileId: string) => {
 
 const fetchSavings = async () => {
   try {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("token");
     if (!token) {
-      alert("You must be logged in to view savings.")
-      return
+      toast.error("You must be logged in to view savings.",{ duration: 4000 });
+      return;
     }
 
     const res = await fetch("http://localhost:8080/api/v1/savings", {
       headers: { Authorization: `Bearer ${token}` },
-    })
+    });
 
-    if (!res.ok) throw new Error(`Failed: ${res.statusText}`)
+    if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
 
-    const data = await res.json()
-    setSavingsData(data)
-    setShowSavings(true)
+    const data = await res.json();
+    setSavingsData(data);
+    setShowSavings(true);
   } catch (err) {
-    console.error(err)
-    alert("Error fetching savings")
+    console.error(err);
+    toast.error(err instanceof Error ? err.message : "Error fetching savings.",{ duration: 4000 });
   }
-}
+};
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+          <Toaster />
       <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between mb-4">
