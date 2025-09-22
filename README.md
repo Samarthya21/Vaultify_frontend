@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BalkanID Vault Frontend
+
+A modern Next.js (React) frontend for the BalkanID Auth system, providing user authentication, file upload, and admin dashboard interfaces.
+
+---
+
+## Features
+- User registration & login (JWT-based)
+- File upload and download UI
+- Admin dashboard
+- Responsive, accessible design (Radix UI, Tailwind CSS)
+
+---
+
+## Project Structure
+- `src/app/` – App routes (login, signup, dashboard, admin)
+- `src/components/` – UI components
+- `public/` – Static assets
+- `docs/` – [Documentation](docs/)
+    - [UI Images](docs/images/)
+    - [Demo Recording](docs/recording/)
+
+---
 
 ## Getting Started
 
-First, run the development server:
+1. **Install dependencies:**
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+2. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Documentation & Resources
+- [API Spec (OpenAPI)] (docs/api-spec.yaml)
+- [System Design](docs/design.md)
+- [UI Images](docs/images/)
+- [Demo Recording](docs/recording/bid_recording.mov)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Screenshots
 
-To learn more about Next.js, take a look at the following resources:
+| Home Page | Admin Page | Login | Signup |
+|-----------|------------|-------|--------|
+| ![Home](docs/images/HomePage.png) | ![Admin](docs/images/adminPage.png) | ![Login](docs/images/login.png) | ![Signup](docs/images/signup.png) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Filters | Preview | Savings Per User |
+|---------|---------|------------------|
+| ![Filters](docs/images/filters.png) | ![Preview](docs/images/preview.png) | ![Savings Per User](docs/images/savings_per_user.png) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Demo Recording
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Watch Demo (mov)](../docs/recording/bid_recording.mov)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## License
+MIT
