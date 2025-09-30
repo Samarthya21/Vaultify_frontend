@@ -1,4 +1,4 @@
-# BalkanID Vault Frontend
+# Vaultify Frontend
 
 A modern Next.js (React) frontend for the BalkanID Auth system, providing user authentication, file upload, and admin dashboard interfaces.
 
